@@ -24,7 +24,4 @@ if %errorlevel% equ 0 (
 :: Install required modules (your script's dependencies)
 python -m pip install --quiet pypiwin32 pycryptodome psutil requests opencv-python
 
-:: Run the Python script
-python discord_grabber.py
-
 endlocal
