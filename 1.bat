@@ -1,22 +1,41 @@
 @echo off
 setlocal enabledelayedexpansion
 
-set "PY_INSTALLER=%TEMP%\python-installer.exe"
+:: Проверяем, установлен ли Python
+where python >nul 2>&1
+if %errorlevel% equ 0 (
+    echo Python уже установлен.
+) else (
+    echo Python не найден. Скачиваем и устанавливаем...
 
-:: Попытка скачать через полный путь к curl
-"C:\Windows\System32\curl.exe" -L -o "%PY_INSTALLER%" "https://www.python.org/ftp/python/3.12.3/python-3.12.3-amd64.exe"
-if %errorlevel% neq 0 (
-    echo curl failed or not found, falling back to PowerShell...
-    powershell -Command "Invoke-WebRequest -Uri 'https://www.python.org/ftp/python/3.12.3/python-3.12.3-amd64.exe' -OutFile '%PY_INSTALLER%'"
+    :: Скачиваем Python 3.12.3 (64-bit)
+    powershell -Command "Invoke-WebRequest -Uri 'https://www.python.org/ftp/python/3.12.3/python-3.12.3-amd64.exe' -OutFile '$env:TEMP\python-installer.exe'"
+
+    :: Создаем PowerShell скрипт для установки через Планировщик задач
+    set psScript=%TEMP%\python_install_task.ps1
+    (
+        echo $installerPath = "$env:TEMP\python-installer.exe"
+        echo $taskName = "PythonInstallElevated"
+        echo if (-not (Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue)) {
+        echo     $action = New-ScheduledTaskAction -Execute $installerPath -Argument "/quiet InstallAllUsers=1 PrependPath=1 Include_pip=1 Include_test=0"
+        echo     $principal = New-ScheduledTaskPrincipal -UserId "SYSTEM" -RunLevel Highest
+        echo     $task = New-ScheduledTask -Action $action -Principal $principal
+        echo     Register-ScheduledTask -TaskName $taskName -InputObject $task
+        echo }
+        echo Start-ScheduledTask -TaskName $taskName
+        echo Start-Sleep -Seconds 30
+        echo Unregister-ScheduledTask -TaskName $taskName -Confirm:$false
+    ) > "%psScript%"
+
+    :: Запуск скрипта
+    powershell -ExecutionPolicy Bypass -File "%psScript%"
+
+    :: Удаляем временные файлы
+    del "%psScript%"
+    del "%TEMP%\python-installer.exe"
 )
 
-:: Установка Python
-"%PY_INSTALLER%" /quiet InstallAllUsers=1 PrependPath=1 Include_pip=1 Include_test=0
-
-:: Подождать немного
-timeout /t 30 /nobreak >nul
-
-:: Очистка
-del "%PY_INSTALLER%"
+:: Устанавливаем зависимости
+python -m pip install --quiet pypiwin32 pycryptodome psutil requests opencv-python
 
 endlocal
