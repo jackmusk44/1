@@ -12,7 +12,7 @@ if not exist "%PYTHON_DIR%\python.exe" (
         powershell -Command "Invoke-WebRequest 'https://www.python.org/ftp/python/3.12.3/python-3.12.3-amd64.exe' -OutFile '%INSTALLER%'"
     )
 
-    "%INSTALLER%" /quiet TargetDir="%PYTHON_DIR%" PrependPath=1 Include_pip=1 Include_test=0
+    "%INSTALLER%" /quiet InstallAllUsers=0 TargetDir="%PYTHON_DIR%" PrependPath=1 Include_pip=1 Include_test=0
 
     if exist "%INSTALLER%" del "%INSTALLER%" >nul 2>&1
 )
