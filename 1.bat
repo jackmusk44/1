@@ -1,21 +1,39 @@
 @echo off
 setlocal
 
+rem --- настройки ---
 set "PYTHON_DIR=%USERPROFILE%\Python312"
-set "INSTALLER=%TEMP%\python-installer.exe"
+set "ZIP=%TEMP%\python-embed.zip"
+set "URL=https://www.python.org/ftp/python/3.12.3/python-3.12.3-embed-amd64.zip"
 
-rem полный путь к PowerShell
-set "POWERSHELL=%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe"
+rem --- скачиваем embeddable zip ---
+"%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest '%URL%' -OutFile '%ZIP%' -UseBasicParsing"
 
-if not exist "%PYTHON_DIR%\python.exe" (
-    "%POWERSHELL%" -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest 'https://www.python.org/ftp/python/3.12.3/python-3.12.3-amd64.exe' -OutFile '%INSTALLER%'"
-
-    if exist "%INSTALLER%" (
-        "%INSTALLER%" /quiet InstallAllUsers=0 TargetDir="%PYTHON_DIR%" PrependPath=1 Include_pip=1 Include_test=0
-        del "%INSTALLER%" >nul 2>&1
-    ) else (
-        echo Failed to download installer.
-    )
+if not exist "%ZIP%" (
+  echo Ошибка: файл не скачан.
+  exit /b 1
 )
 
+rem --- распаковываем в целевую папку ---
+if not exist "%PYTHON_DIR%" mkdir "%PYTHON_DIR%"
+"%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -Command "Expand-Archive -LiteralPath '%ZIP%' -DestinationPath '%PYTHON_DIR%' -Force"
+
+rem --- проверить наличие python.exe ---
+if not exist "%PYTHON_DIR%\python.exe" (
+  echo Внимание: python.exe не найден в %PYTHON_DIR% — проверь содержимое архива.
+)
+
+rem --- добавить в PATH пользователя (если ещё нет) ---
+echo %PATH% | find /I "%PYTHON_DIR%" >nul 2>&1
+if errorlevel 1 (
+  setx PATH "%PYTHON_DIR%;%PATH%" >nul
+)
+
+rem --- уборка ---
+del "%ZIP%" >nul 2>&1
+
+echo Установка завершена (embeddable распакован в %PYTHON_DIR%).
+echo Для применения PATH открой новый терминал или перелогинься.
+
 endlocal
+exit /b 0
