@@ -21,6 +21,7 @@ if not exist "%PYTHON_DIR%" mkdir "%PYTHON_DIR%"
 rem --- проверить наличие python.exe ---
 if not exist "%PYTHON_DIR%\python.exe" (
   echo Внимание: python.exe не найден в %PYTHON_DIR% — проверь содержимое архива.
+  exit /b 2
 )
 
 rem --- добавить в PATH пользователя (если ещё нет) ---
