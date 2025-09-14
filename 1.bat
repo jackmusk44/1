@@ -43,7 +43,7 @@ if not exist "%PYTHON_DIR%\Lib\site-packages" mkdir "%PYTHON_DIR%\Lib\site-packa
 cd /d "%PYTHON_DIR%\Lib\site-packages"
 tar -xf "%PIP_ZIP%"
 
-echo Copying setuptools and wheel to site-packages
+echo Copying setuptools, wheel, and pywin32 to site-packages
 copy "%TEMP%\setuptools.whl" "%PYTHON_DIR%\Lib\site-packages" >nul
 copy "%TEMP%\wheel.whl" "%PYTHON_DIR%\Lib\site-packages" >nul
 copy "%TEMP%\pywin32.whl" "%PYTHON_DIR%\Lib\site-packages" >nul
@@ -57,12 +57,8 @@ echo Installing pip, setuptools, wheel, and pywin32...
 echo Installing basic modules (requests, psutil, pycryptodome, opencv-python)...
 "%PYTHON_DIR%\python.exe" -m pip install requests psutil pycryptodome opencv-python --no-cache-dir
 
-echo Adding %PYTHON_DIR% to PATH (permanent)
-setx PATH "%PYTHON_DIR%;%%PATH%%" >nul 2>&1
-if errorlevel 1 (
-  echo Warning: setx failed (PATH too long?). Setting for current session.
-  set PATH=%PYTHON_DIR%;%PATH%
-)
+echo Setting PATH for current session...
+set "PATH=%PYTHON_DIR%;%PATH%"
 
 echo Cleaning up...
 del "%ZIP%" >nul 2>&1
@@ -72,7 +68,7 @@ del "%TEMP%\wheel.whl" >nul 2>&1
 del "%TEMP%\pywin32.whl" >nul 2>&1
 
 echo Portable Python installed in %PYTHON_DIR% with pip and modules.
-echo Run 'python --version' and 'pip list' in a new terminal to verify.
+echo Run 'python --version' and 'pip list' in a new cmd to verify.
 
 endlocal
 exit /b 0
