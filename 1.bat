@@ -1,43 +1,41 @@
 @echo off
 setlocal
 
-rem --- настройки ---
 set "PYTHON_DIR=%USERPROFILE%\Python312"
 set "ZIP=%TEMP%\python-embed.zip"
 set "URL=https://www.python.org/ftp/python/3.12.3/python-3.12.3-embed-amd64.zip"
 
-rem --- скачиваем embeddable zip ---
-"%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest '%URL%' -OutFile '%ZIP%' -UseBasicParsing"
+echo Downloading from %URL% to %ZIP%
+powershell.exe -NoProfile -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest '%URL%' -OutFile '%ZIP%' -UseBasicParsing"
 
 if not exist "%ZIP%" (
-  echo Ошибка: файл не скачан.
+  echo Error: File not downloaded.
   exit /b 1
 )
 
-rem --- распаковываем в целевую папку ---
+echo Extracting %ZIP% to %PYTHON_DIR%
 if not exist "%PYTHON_DIR%" mkdir "%PYTHON_DIR%"
-"%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -Command "Expand-Archive -LiteralPath '%ZIP%' -DestinationPath '%PYTHON_DIR%' -Force"
+powershell.exe -NoProfile -Command "Expand-Archive -LiteralPath '%ZIP%' -DestinationPath '%PYTHON_DIR%' -Force"
 
-rem --- проверить наличие python.exe ---
+echo Checking for python.exe in %PYTHON_DIR%
 if not exist "%PYTHON_DIR%\python.exe" (
-  echo Внимание: python.exe не найден в %PYTHON_DIR% — проверь содержимое архива.
+  echo Error: python.exe not found in %PYTHON_DIR%. Contents:
+  dir "%PYTHON_DIR%"
   exit /b 2
 )
 
-rem --- добавить в PATH пользователя (если ещё нет) ---
 set "found=0"
 for %%a in ("%PATH:;=" "%") do (
   if /I "%%~a" == "%PYTHON_DIR%" set "found=1"
 )
 if "%found%" == "0" (
+  echo Adding %PYTHON_DIR% to PATH
   setx PATH "%PYTHON_DIR%;%PATH%" >nul
 )
 
-rem --- уборка ---
+echo Cleaning up %ZIP%
 del "%ZIP%" >nul 2>&1
 
-echo Установка завершена (embeddable распакован в %PYTHON_DIR%).
-echo Для применения PATH открой новый терминал или перелогинься.
-
+echo Installation completed in %PYTHON_DIR%. Open new terminal for PATH changes.
 endlocal
 exit /b 0
