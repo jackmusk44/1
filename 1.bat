@@ -24,8 +24,11 @@ if not exist "%PYTHON_DIR%\python.exe" (
 )
 
 rem --- добавить в PATH пользователя (если ещё нет) ---
-echo %PATH% | find /I "%PYTHON_DIR%" >nul 2>&1
-if errorlevel 1 (
+set "found=0"
+for %%a in ("%PATH:;=" "%") do (
+  if /I "%%~a" == "%PYTHON_DIR%" set "found=1"
+)
+if "%found%" == "0" (
   setx PATH "%PYTHON_DIR%;%PATH%" >nul
 )
 
