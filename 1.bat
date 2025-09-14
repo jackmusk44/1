@@ -24,7 +24,8 @@ if not exist "%PYTHON_DIR%\python.exe" (
   exit /b 2
 )
 
-echo ;%PATH%; | find /i ";%PYTHON_DIR%;" >nul
+echo Checking if %PYTHON_DIR% is in PATH
+echo %PATH% | find /i "%PYTHON_DIR%" >nul
 if errorlevel 1 (
   echo Adding %PYTHON_DIR% to PATH
   setx PATH "%PYTHON_DIR%;%PATH%" >nul
