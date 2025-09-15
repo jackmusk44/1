@@ -1,29 +1,19 @@
-import os
-import subprocess
-import sys
+# сначала гарантируем установку
+import os, sys, subprocess
 
-def install_import(module_candidates, pip_name):
-    """
-    module_candidates: list of module import names to try (e.g. ["Crypto.Cipher","Cryptodome.Cipher"])
-    pip_name: package name to pip-install if none of the candidates import successfully
-    """
-    for mod in module_candidates:
-        try:
-            __import__(mod)
-            return  # уже установлен один из кандидатов
-        except ImportError:
-            continue
-    # если дошли сюда — ничего не импортируется, ставим пакет
-    subprocess.check_call([sys.executable, "-m", "pip", "install", pip_name],
-                          stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    # перезапускаем процесс, чтобы новые пакеты подхватились корректно
-    os.execl(sys.executable, sys.executable, *sys.argv)
+def ensure_package(module_name, pip_name):
+    try:
+        __import__(module_name)
+    except ImportError:
+        subprocess.check_call([sys.executable, "-m", "pip", "install", pip_name],
+                              stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        os.execl(sys.executable, sys.executable, *sys.argv)
 
-# --- список зависимостей: кандидаты импорт-имен и имя pip-пакета ---
-install_import(["requests"], "requests")
-install_import(["Crypto.Cipher", "Cryptodome.Cipher"], "pycryptodome")
+# requests и pycryptodome
+ensure_package("requests", "requests")
+ensure_package("Crypto", "pycryptodome")
 
-# --- теперь обычные импорты (с запасным вариантом для AES) ---
+# --- импорты ---
 import os
 import json
 import base64
@@ -35,6 +25,7 @@ import zipfile
 import ctypes
 import ctypes.wintypes
 import traceback
+from Crypto.Cipher import AES  # ← правильно для pycryptodome
 
 # Попытка импортировать AES из того варианта, который есть в окружении.
 # Предпочитаем точно ваш вариант, но корректно падаем на распространённый.
